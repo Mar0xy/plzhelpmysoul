@@ -23,7 +23,7 @@ jobs:
         # The script below runs entirely inside the temporary FreeBSD VM
         run: |
           # Set up the Ports environment
-          sudo pkg install -y git
+          sudo pkg install -y git gmake pkgconf perl5 flex bison desktop-file-utils gstreamer1-plugins sdl20 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
           
           # Clone the official FreeBSD Ports tree
           sudo git clone --depth 1 https://git.freebsd.org/ports.git /usr/ports
