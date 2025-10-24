@@ -23,10 +23,10 @@ jobs:
         # The script below runs entirely inside the temporary FreeBSD VM
         run: |
           # Set up the Ports environment
-          env PAGER=cat pkg install -y git
+          sudo pkg install -y git
           
           # Clone the official FreeBSD Ports tree
-          git clone --depth 1 https://cgit.freebsd.org/ports.git /usr/ports
+          sudo git clone --depth 1 https://cgit.freebsd.org/ports.git /usr/ports
   
           # Determine the Wine flavor to build from workflow input
           WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
@@ -38,7 +38,7 @@ jobs:
           cd $PORTS_PATH
           
           # Build the package
-          make package
+          sudo make package
           
           # Find the specific .pkg file created in the packages directory.
           PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
@@ -52,7 +52,7 @@ jobs:
           
           # CRITICAL: Copy the package file to the GITHUB_WORKSPACE 
           # so the subsequent host runner steps can access the artifact.
-          cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
+          sudo cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
   
     - name: Upload Wine Package Artifact
       uses: actions/upload-artifact@v4
