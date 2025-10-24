@@ -36,6 +36,28 @@ jobs:
           
           # Change directory to the specified Wine port
           cd $PORTS_PATH
+
+          # --- CUSTOM PATCH: Apply specific kernel32 fix via EXTRA_PATCHES ---
+          # This method leverages the ports infrastructure to automatically apply the patch.
+          PATCH_URL="https://dawn.wine/dawn-winery/dwproton/raw/commit/6eb935935044fd50f0724e79b41869a02b4050bc3b/patches/spritz/0002-fixes/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+          PATCH_FILENAME="extra-patch-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+          
+          echo "Configuring custom patch via EXTRA_PATCHES..."
+  
+          # 1. Fetch the patch directly into the 'files' directory
+          echo "Fetching and saving patch as files/$PATCH_FILENAME"
+          sudo fetch -o "files/$PATCH_FILENAME" "$PATCH_URL"
+  
+          # 3. Modify the existing EXTRA_PATCHES line in the Makefile using sed.
+          # This finds the last line starting with 'EXTRA_PATCHES' and inserts the new patch
+          # path with a line continuation ('\') to keep the definition unified.
+          echo "Modifying Makefile to include patch..."
+          # Note: The FreeBSD sed syntax is used here (though the shell might default to GNU sed depending on the VM configuration, this is safer)
+          sudo sed -i '' -e '$!b' -e '/^EXTRA_PATCHES/ {
+            s/$/ \\/
+            a\
+          	files/'"$PATCH_FILENAME"'
+          }' Makefile
           
           # Build the package
           sudo make package
