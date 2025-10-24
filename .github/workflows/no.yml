@@ -36,6 +36,20 @@ jobs:
           
           # Change directory to the specified Wine port
           cd $PORTS_PATH
+
+          # --- CRITICAL: Install Dependencies via pkg ---
+          echo "Generating dependency list from port metadata..."
+          
+          # Get the list of build dependencies (stripping the path)
+          BUILD_DEPS=$(make build-depends-list | sed 's@^.*/@@' | tr '\n' ' ')
+          # Get the list of runtime dependencies
+          RUN_DEPS=$(make run-depends-list | sed 's@^.*/@@' | tr '\n' ' ')
+          
+          ALL_DEPS="$BUILD_DEPS $RUN_DEPS"
+  
+          # Install all dependencies using pkg -y for non-interactive install
+          echo "Installing dependencies via pkg: $ALL_DEPS"
+          sudo pkg install -y $ALL_DEPS
           
           # Build the package
           sudo make package
