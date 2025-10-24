@@ -26,7 +26,7 @@ jobs:
           sudo pkg install -y git
           
           # Clone the official FreeBSD Ports tree
-          sudo git clone --depth 1 https://cgit.freebsd.org/ports.git /usr/ports
+          sudo git clone --depth 1 https://cgit.freebsd.org/ports /usr/ports
   
           # Determine the Wine flavor to build from workflow input
           WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
