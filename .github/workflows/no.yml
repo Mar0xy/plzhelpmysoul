@@ -60,6 +60,8 @@ jobs:
           }' Makefile
           
           # Build the package
+          export DISABLE_LICENSES=yes
+          export BATCH=yes
           sudo make package
           
           # Find the specific .pkg file created in the packages directory.
