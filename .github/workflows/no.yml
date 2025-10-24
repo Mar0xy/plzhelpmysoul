@@ -36,9 +36,6 @@ jobs:
           
           # Change directory to the specified Wine port
           cd $PORTS_PATH
-
-          # --- CRITICAL: Install Dependencies ---
-          sudo make install-for-package
           
           # Build the package
           sudo make package
