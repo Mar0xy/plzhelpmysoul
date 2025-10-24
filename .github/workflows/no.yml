@@ -23,10 +23,10 @@ jobs:
         # The script below runs entirely inside the temporary FreeBSD VM
         run: |
           # Set up the Ports environment
-          sudo pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
+          sudo pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
           
           # Clone the official FreeBSD Ports tree
-          sudo git clone --depth 1 https://git.freebsd.org/ports.git /usr/ports
+          sudo git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports
   
           # Determine the Wine flavor to build from workflow input
           WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
