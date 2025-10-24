@@ -39,7 +39,7 @@ jobs:
 
           # --- CUSTOM PATCH: Apply specific kernel32 fix via EXTRA_PATCHES ---
           # This method leverages the ports infrastructure to automatically apply the patch.
-          PATCH_URL="https://dawn.wine/dawn-winery/dwproton/raw/commit/6eb935935044fd50f0724e79b41869a02b4050bc3b/patches/spritz/0002-fixes/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+          PATCH_URL="https://dawn.wine/dawn-winery/dwproton/raw/commit/6eb9358044fd50f0724e79b41869a02b4050bc3b/patches/spritz/0002-fixes/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
           PATCH_FILENAME="extra-patch-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
           
           echo "Configuring custom patch via EXTRA_PATCHES..."
