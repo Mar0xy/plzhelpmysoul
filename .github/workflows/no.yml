@@ -27,6 +27,7 @@ jobs:
           
           # Clone the official FreeBSD Ports tree
           sudo git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports
+          sudo mkdir /usr/ports/packages
   
           # Determine the Wine flavor to build from workflow input
           WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
@@ -65,11 +66,12 @@ jobs:
           sudo -E make package
           
           # Find the specific .pkg file created in the packages directory.
+          # Check for the modern .pkg extension first
           PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
           
+          # If not found, check for the traditional .txz extension
           if [ -z "$PKG_FILE" ]; then
-            echo "Error: No package file found after build."
-            exit 1
+              PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.txz" | head -n 1)
           fi
           
           echo "Successfully built package: $PKG_FILE"
