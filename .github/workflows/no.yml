@@ -49,7 +49,7 @@ jobs:
           echo "Fetching and saving patch as files/$PATCH_FILENAME"
           sudo fetch -o "files/$PATCH_FILENAME" "$PATCH_URL"
   
-          # 3. Modify the existing EXTRA_PATCHES line in the Makefile using sed.
+          # 2. Modify the existing EXTRA_PATCHES line in the Makefile using sed.
           # This finds the last line starting with 'EXTRA_PATCHES' and inserts the new patch
           # path with a line continuation ('\') to keep the definition unified.
           echo "Modifying Makefile to include patch..."
