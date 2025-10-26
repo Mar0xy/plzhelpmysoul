@@ -1,0 +1,98 @@
+name: Build FreeBSD Wine Package (i386)
+
+on:
+  workflow_dispatch:
+    inputs:
+      wine_version:
+        description: 'Specify which Wine flavor to build (e.g., wine, wine-devel, wine-proton)'
+        required: true
+        default: 'wine'
+
+jobs:
+  build-freebsd-pkg-i386:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Build Wine Package on FreeBSD 14.3 VM (i386)
+        uses: cross-platform-actions/action@v0.29.0
+        with:
+          operating_system: freebsd
+          version: '14.3'
+          # The script below runs entirely inside the temporary FreeBSD VM
+          run: |
+            # Set up the Ports environment
+            sudo pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
+            
+            # Clone the official FreeBSD Ports tree
+            sudo git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports
+            sudo mkdir /usr/ports/packages
+    
+            # Determine the Wine flavor to build from workflow input
+            WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
+            PORTS_PATH="/usr/ports/emulators/${WINE_FLAVOR}"
+    
+            echo "Starting 32-bit (i386) build for flavor: $WINE_FLAVOR"
+            
+            # Change directory to the specified Wine port
+            cd $PORTS_PATH
+  
+            # --- CUSTOM PATCH: Apply specific kernel32 fix via EXTRA_PATCHES ---
+            # This method leverages the ports infrastructure to automatically apply the patch.
+            PATCH_URL="https://dawn.wine/dawn-winery/dwproton/raw/commit/6eb9358044fd50f0724e79b41869a02b4050bc3b/patches/spritz/0002-fixes/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+            PATCH_FILENAME="extra-patch-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+            
+            echo "Configuring custom patch via EXTRA_PATCHES..."
+    
+            # 1. Fetch the patch directly into the 'files' directory
+            echo "Fetching and saving patch as files/$PATCH_FILENAME"
+            sudo fetch -o "files/$PATCH_FILENAME" "$PATCH_URL"
+    
+            # 2. Modify the existing EXTRA_PATCHES line in the Makefile using sed.
+            # This finds the last line starting with 'EXTRA_PATCHES' and inserts the new patch
+            # path with a line continuation ('\') to keep the definition unified.
+            echo "Modifying Makefile to include patch..."
+            # Note: The FreeBSD sed syntax is used here (though the shell might default to GNU sed depending on the VM configuration, this is safer)
+            sudo sed -i '' -e '$!b' -e '/^EXTRA_PATCHES/ {
+              s/$/ \\/
+              a\
+            	files/'"$PATCH_FILENAME"'
+            }' Makefile
+            
+            # Build the package
+            export DISABLE_LICENSES=yes
+            export BATCH=yes
+          
+            # Tell the build system that i386 is the target architecture
+            # Setting these flags is often necessary for cross-architecture builds
+            # in the Ports system.
+
+            export ABI="FreeBSD:14:i386"
+            export ARCH="i386"
+            export MACHINE="i386"
+            sudo -E make package
+            
+            # Find the specific .pkg file created in the packages directory.
+            # Check for the modern .pkg extension first
+            PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
+            
+            # If not found, check for the traditional .txz extension
+            if [ -z "$PKG_FILE" ]; then
+                PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.txz" | head -n 1)
+            fi
+            
+            echo "Successfully built package: $PKG_FILE"
+            
+            # CRITICAL: Copy the package file to the GITHUB_WORKSPACE 
+            # so the subsequent host runner steps can access the artifact.
+            sudo cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
+  
+      - name: Upload Wine Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: freebsd-wine-package
+          # Search for any .pkg file copied back to the workspace root
+          path: ${{ github.workspace }}/*.pkg
+          retention-days: 7
+        
