@@ -28,23 +28,13 @@ jobs:
             # Clone the official FreeBSD Ports tree
             sudo git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports
             sudo mkdir /usr/ports/packages
-
-            # --- FIX: Rebuild print/texinfo dependency ---
-            echo "Forcing a clean build and install for print/texinfo..."
-            cd /usr/ports/print/texinfo
             
             export DISABLE_LICENSES=yes
             export BATCH=yes
 
-            # Tell the build system that i386 is the target architecture
-            # Setting these flags is often necessary for cross-architecture builds
-            # in the Ports system.
-
             export ABI="FreeBSD:14:i386"
             export ARCH="i386"
             export MACHINE="i386"
-            
-            sudo -E make install clean
     
             # Determine the Wine flavor to build from workflow input
             WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
@@ -78,6 +68,7 @@ jobs:
             }' Makefile
             
             # Build the package
+            sudo -E make install-missing-packages
             sudo -E make package
             
             # Find the specific .pkg file created in the packages directory.
