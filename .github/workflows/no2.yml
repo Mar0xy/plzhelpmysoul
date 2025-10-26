@@ -71,7 +71,7 @@ jobs:
             export ABI="FreeBSD:14:i386"
             export ARCH="i386"
             export MACHINE="i386"
-            sudo -E make build-depends-install
+            sudo -E make install-depends
             sudo -E make package
             
             # Find the specific .pkg file created in the packages directory.
