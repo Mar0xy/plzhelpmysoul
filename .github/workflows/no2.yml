@@ -68,7 +68,6 @@ jobs:
             }' Makefile
             
             # Build the package
-            sudo -E make install-missing-packages
             sudo -E make package
             
             # Find the specific .pkg file created in the packages directory.
