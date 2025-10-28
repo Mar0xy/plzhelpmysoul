@@ -24,81 +24,55 @@ jobs:
           run: |
             set -eux  # Exit immediately on error
 
-            JAIL_NAME="i386_build_jail"
-            JAIL_ROOT="/usr/jail/$JAIL_NAME"
+            CHROOT_NAME="i386_build_chroot"
+            CHROOT_ROOT="/usr/chroot/$CHROOT_NAME"
             RELEASE_VERSION="14.3" # Use a stable version of i386 base
-            JAIL_CONF_FILE="/tmp/jail.conf"
-            HOST_INTERFACE="vtnet0" # The host's main network interface
       
-            # 1. Create and populate the i386 jail
-            echo "Setting up i386 jail..."
-            sudo mkdir -p "$JAIL_ROOT"
             sudo fetch --no-verify-peer https://ftp.freebsd.org/pub/FreeBSD/releases/i386/i386/$RELEASE_VERSION-RELEASE/base.txz -o /tmp/base.txz
-            sudo tar -xpf /tmp/base.txz -C "$JAIL_ROOT"
-            sudo chown -R root:wheel "$JAIL_ROOT"
-
-            echo "Forcing public nameservers inside jail's resolv.conf..."
-            cat <<EOF | sudo tee "$JAIL_ROOT"/etc/resolv.conf
-            nameserver 8.8.8.8
-            nameserver 1.1.1.1
-            EOF
-
-            # 2. Create a temporary jail.conf for robust configuration
-            echo "Creating temporary jail.conf at $JAIL_CONF_FILE"
-            cat <<EOF | sudo tee "$JAIL_CONF_FILE"
-            $JAIL_NAME {
-                host.hostname = "$JAIL_NAME";
-                path = "$JAIL_ROOT";
-                allow.mount.devfs = 1;
-                allow.raw_sockets = 1;
-                ip4.addr = 127.0.0.2/8;
-                mount.devfs;
-                allow.chflags = 1;        # Allows modifying interface flags (like 'up')
-                allow.sysvipc = 1;        # General compatibility for network services
-                exec.start = "/bin/sh /etc/rc";
-                exec.stop = "/bin/sh /etc/rc.shutdown";
-            }
-            EOF
-      
-            # 3. Start the jail
-            echo "Starting i386 jail..."
-            sudo jail -f "$JAIL_CONF_FILE" -c "$JAIL_NAME"
+            sudo tar -xpf /tmp/base.txz -C "$CHROOT_ROOT"
+            sudo chown -R root:wheel "$CHROOT_ROOT"
             
-            # Final Network Check (pinging a domain name to test DNS resolution)
-            echo "Final network check: pinging pkg.FreeBSD.org from inside the jail..."
-            # This is the actual server we need to reach.
-            sudo jexec "$JAIL_NAME" sh -c 'ping -c 3 pkg.FreeBSD.org'
-      
-            # 4. Prepare Ports inside the 32-bit jail
-            echo "Preparing ports inside the i386 jail..."
-            # Use jexec to run commands inside the jail
-            sudo jexec "$JAIL_NAME" sh -c 'pkg bootstrap -f -y'
-            sudo jexec "$JAIL_NAME" sh -c 'pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender'
-            # Clone ports only once for all builds
-            sudo jexec "$JAIL_NAME" sh -c 'git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports'
-      
-            # 5. Build the package inside the jail
+            # Copy essential host files for networking and device access
+            sudo cp /etc/resolv.conf "$CHROOT_ROOT"/etc/resolv.conf
+            # Mount the devfs file system inside the chroot
+            sudo mount -t devfs devfs "$CHROOT_ROOT"/dev
+            
+            # 2. Prepare Ports and Build the package inside the 32-bit chroot
+            echo "Preparing ports inside the i386 chroot..."
+            
+            # Use chroot to run commands inside the 32-bit environment. 
+            # The network is now inherited from the host.
+            
+            # Bootstrap pkg and git using the i386 repository
+            # Note: Use -r FreeBSD-i386 for chroot to ensure it grabs the right architecture
+            sudo chroot "$CHROOT_ROOT" sh -c 'env ASSUME_ALWAYS_YES=YES \
+                pkg install -y -r FreeBSD-i386 pkg git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender'
+            
+            # Clone ports
+            sudo chroot "$CHROOT_ROOT" sh -c 'git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports'
+            
             WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
             PORTS_PATH="/usr/ports/emulators/${WINE_FLAVOR}"
-            echo "Building $WINE_FLAVOR in i386 jail..."
-      
-            # All build-time dependencies will be installed as 32-bit by pkg/ports inside the jail.
-            BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
-            sudo jexec "$JAIL_NAME" sh -c "$BUILD_CMD"
-      
-            # 5. Find, copy, and clean up
-            PKG_FILE=$(find "$JAIL_ROOT"/usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
+            echo "Building $WINE_FLAVOR in i386 chroot..."
             
-            # If not found, check for the traditional .txz extension
+            # Build the 32-bit package
+            BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
+            sudo chroot "$CHROOT_ROOT" sh -c "$BUILD_CMD"
+            
+            # 3. Find, copy, and clean up
+            PKG_FILE=$(find "$CHROOT_ROOT"/usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
+            
             if [ -z "$PKG_FILE" ]; then
-                PKG_FILE=$(find "$JAIL_ROOT"/usr/ports/packages/All/ -name "${WINE_FLAVOR}*.txz" | head -n 1)
+                PKG_FILE=$(find "$CHROOT_ROOT"/usr/ports/packages/All/ -name "${WINE_FLAVOR}*.txz" | head -n 1)
             fi
-      
+            
             echo "Successfully built package: $PKG_FILE"
             sudo cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
-      
-            # Stop the jail
-            sudo jail -r "$JAIL_NAME"
+            
+            # Clean up: Unmount devfs and remove the chroot directory
+            sudo umount "$CHROOT_ROOT"/dev
+            # Note: Using rm -rf is necessary for cleanup but should be handled with extreme care!
+            sudo rm -rf "$CHROOT_ROOT"
   
       - name: Upload Wine Package Artifact
         uses: actions/upload-artifact@v4
