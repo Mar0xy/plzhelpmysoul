@@ -25,65 +25,56 @@ jobs:
             # Set up the Ports environment
             sudo pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
             
-            # Clone the official FreeBSD Ports tree
-            sudo git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports
-            sudo mkdir /usr/ports/packages
-            
-            export DISABLE_LICENSES=yes
-            export BATCH=yes
+            set -eux  # Exit immediately on error
 
-            export ABI="FreeBSD:14:i386"
-            export ARCH="i386"
-            export MACHINE="i386"
-    
-            # Determine the Wine flavor to build from workflow input
+            JAIL_NAME="i386_build_jail"
+            JAIL_ROOT="/usr/jail/$JAIL_NAME"
+            RELEASE_VERSION="14.3" # Use a stable version of i386 base
+      
+            # 1. Create and populate the i386 jail
+            echo "Setting up i386 jail..."
+            sudo mkdir -p "$JAIL_ROOT"
+            sudo fetch --no-verify-peer https://ftp.freebsd.org/pub/FreeBSD/releases/i386/i386/$RELEASE_VERSION-RELEASE/base.txz -o /tmp/base.txz
+            sudo tar -xpf /tmp/base.txz -C "$JAIL_ROOT"
+            sudo cp /etc/resolv.conf "$JAIL_ROOT"/etc/resolv.conf
+            sudo chown -R root:wheel "$JAIL_ROOT"
+      
+            # 2. Start the jail
+            echo "Starting i386 jail..."
+            # Use `lo0` interface or no IP for simplicity in a CI environment
+            sudo jail -c "$JAIL_NAME" host.hostname="$JAIL_NAME" path="$JAIL_ROOT" allow.mount.devfs=1 mount.devfs
+            JAIL_JID=$(jls -j "$JAIL_NAME" -o jid | tail -1)
+      
+            # 3. Prepare Ports inside the 32-bit jail
+            echo "Preparing ports inside the i386 jail..."
+            # Use jexec to run commands inside the jail
+            sudo jexec "$JAIL_JID" sh -c 'pkg bootstrap -f -y'
+            sudo jexec "$JAIL_JID" sh -c 'pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender'
+            # Clone ports only once for all builds
+            sudo jexec "$JAIL_JID" sh -c 'git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports'
+      
+            # 4. Build the package inside the jail
             WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
             PORTS_PATH="/usr/ports/emulators/${WINE_FLAVOR}"
-    
-            echo "Starting 32-bit (i386) build for flavor: $WINE_FLAVOR"
-            
-            # Change directory to the specified Wine port
-            cd $PORTS_PATH
-  
-            # --- CUSTOM PATCH: Apply specific kernel32 fix via EXTRA_PATCHES ---
-            # This method leverages the ports infrastructure to automatically apply the patch.
-            PATCH_URL="https://dawn.wine/dawn-winery/dwproton/raw/commit/6eb9358044fd50f0724e79b41869a02b4050bc3b/patches/spritz/0002-fixes/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
-            PATCH_FILENAME="extra-patch-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
-            
-            echo "Configuring custom patch via EXTRA_PATCHES..."
-    
-            # 1. Fetch the patch directly into the 'files' directory
-            echo "Fetching and saving patch as files/$PATCH_FILENAME"
-            sudo fetch -o "files/$PATCH_FILENAME" "$PATCH_URL"
-    
-            # 2. Modify the existing EXTRA_PATCHES line in the Makefile using sed.
-            # This finds the last line starting with 'EXTRA_PATCHES' and inserts the new patch
-            # path with a line continuation ('\') to keep the definition unified.
-            echo "Modifying Makefile to include patch..."
-            # Note: The FreeBSD sed syntax is used here (though the shell might default to GNU sed depending on the VM configuration, this is safer)
-            sudo sed -i '' -e '$!b' -e '/^EXTRA_PATCHES/ {
-              s/$/ \\/
-              a\
-            	files/'"$PATCH_FILENAME"'
-            }' Makefile
-            
-            # Build the package
-            sudo -E make package
-            
-            # Find the specific .pkg file created in the packages directory.
-            # Check for the modern .pkg extension first
-            PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
+            echo "Building $WINE_FLAVOR in i386 jail..."
+      
+            # All build-time dependencies will be installed as 32-bit by pkg/ports inside the jail.
+            BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
+            sudo jexec "$JAIL_JID" sh -c "$BUILD_CMD"
+      
+            # 5. Find, copy, and clean up
+            PKG_FILE=$(find "$JAIL_ROOT"/usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
             
             # If not found, check for the traditional .txz extension
             if [ -z "$PKG_FILE" ]; then
-                PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.txz" | head -n 1)
+                PKG_FILE=$(find "$JAIL_ROOT"/usr/ports/packages/All/ -name "${WINE_FLAVOR}*.txz" | head -n 1)
             fi
-            
+      
             echo "Successfully built package: $PKG_FILE"
-            
-            # CRITICAL: Copy the package file to the GITHUB_WORKSPACE 
-            # so the subsequent host runner steps can access the artifact.
             sudo cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
+      
+            # Stop the jail
+            sudo jail -r "$JAIL_JID"
   
       - name: Upload Wine Package Artifact
         uses: actions/upload-artifact@v4
