@@ -22,9 +22,6 @@ jobs:
           version: '14.3'
           # The script below runs entirely inside the temporary FreeBSD VM
           run: |
-            # Set up the Ports environment
-            sudo pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
-            
             set -eux  # Exit immediately on error
 
             JAIL_NAME="i386_build_jail"
