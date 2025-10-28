@@ -27,6 +27,10 @@ jobs:
             CHROOT_NAME="i386_build_chroot"
             CHROOT_ROOT="/usr/chroot/$CHROOT_NAME"
             RELEASE_VERSION="14.3" # Use a stable version of i386 base
+
+            # 1. Create and populate the i386 environment
+            echo "Setting up i386 chroot at $CHROOT_ROOT..."
+            sudo mkdir -p "$CHROOT_ROOT"
       
             sudo fetch --no-verify-peer https://ftp.freebsd.org/pub/FreeBSD/releases/i386/i386/$RELEASE_VERSION-RELEASE/base.txz -o /tmp/base.txz
             sudo tar -xpf /tmp/base.txz -C "$CHROOT_ROOT"
