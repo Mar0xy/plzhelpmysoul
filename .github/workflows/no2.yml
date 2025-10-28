@@ -40,6 +40,8 @@ jobs:
             sudo cp /etc/resolv.conf "$CHROOT_ROOT"/etc/resolv.conf
             # Mount the devfs file system inside the chroot
             sudo mount -t devfs devfs "$CHROOT_ROOT"/dev
+            sudo mkdir -p "$CHROOT_ROOT"/tmp
+            sudo chmod 1777 "$CHROOT_ROOT"/tmp
 
             # CRITICAL FIX 1: Create the repository configuration directory
             echo "Creating pkg repository configuration directory..."
