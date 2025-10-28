@@ -81,7 +81,7 @@ jobs:
             echo "Modifying Makefile to include $PATCH_FILE_NAME in chroot..."
             sudo fetch -o "$PATCH_DEST_DIR" "$PATCH_URL"
             # This command uses the sed logic from your original snippet, executed inside the chroot.
-            PATCH_SED_COMMAND="cd $PORTS_PATH && sed -i '' -e '\$!b' -e '/^EXTRA_PATCHES/ { s/\$/ \\\/ a\\ files/$PATCH_FILE_NAME }' Makefile"
+            PATCH_SED_COMMAND="cd $PORTS_PATH && sed -i '' -e '\$!b' -e '/^EXTRA_PATCHES/ { s/\$/ \\\/ a\\ files/$PATCH_FILENAME }' Makefile"
             
             sudo chroot "$CHROOT_ROOT" sh -c "$PATCH_SED_COMMAND"
             
