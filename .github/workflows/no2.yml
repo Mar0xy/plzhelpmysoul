@@ -34,8 +34,8 @@ jobs:
             sudo mkdir -p "$JAIL_ROOT"
             sudo fetch --no-verify-peer https://ftp.freebsd.org/pub/FreeBSD/releases/i386/i386/$RELEASE_VERSION-RELEASE/base.txz -o /tmp/base.txz
             sudo tar -xpf /tmp/base.txz -C "$JAIL_ROOT"
-            sudo cp /etc/resolv.conf "$JAIL_ROOT"/etc/resolv.conf
             sudo chown -R root:wheel "$JAIL_ROOT"
+            sudo cp /etc/resolv.conf "$JAIL_ROOT"/etc/resolv.conf
 
             # 2. Create a temporary jail.conf for robust configuration
             echo "Creating temporary jail.conf at $JAIL_CONF_FILE"
@@ -45,7 +45,12 @@ jobs:
                 path = "$JAIL_ROOT";
                 allow.mount.devfs = 1;
                 allow.raw_sockets = 1;
-                vnet = inherit;
+                # Use loopback IP as a fallback, but the 'resolver' is the key fix.
+                ip4.addr = 127.0.0.2/8;
+                
+                # CRITICAL FIX: Use the host's primary DNS server (e.g., 8.8.8.8, 1.1.1.1, or a host DNS)
+                # This setting is specific to pkg/ports and often resolves the 'resolver failure'.
+                exec.start += "sh -c 'ifconfig lo0 127.0.0.2 up'";
                 mount.devfs;
                 exec.start = "/bin/sh /etc/rc";
                 exec.stop = "/bin/sh /etc/rc.shutdown";
