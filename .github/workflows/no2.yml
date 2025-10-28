@@ -71,7 +71,19 @@ jobs:
             
             WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
             PORTS_PATH="/usr/ports/emulators/${WINE_FLAVOR}"
+            PATCH_URL="https://dawn.wine/dawn-winery/dwproton/raw/commit/6eb9358044fd50f0724e79b41869a02b4050bc3b/patches/spritz/0002-fixes/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+            PATCH_FILENAME="extra-patch-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+            PATCH_DEST_DIR="${CHROOT_ROOT}${PORTS_PATH}/files"
+            
             echo "Building $WINE_FLAVOR in i386 chroot..."
+            sudo mkdir -p "$CHROOT_ROOT"/usr/ports/packages
+
+            echo "Modifying Makefile to include $PATCH_FILE_NAME in chroot..."
+            sudo fetch -o "$PATCH_DEST_DIR" "$PATCH_URL"
+            # This command uses the sed logic from your original snippet, executed inside the chroot.
+            PATCH_SED_COMMAND="cd $PORTS_PATH && sed -i '' -e '\$!b' -e '/^EXTRA_PATCHES/ { s/\$/ \\\/ a\\ files/$PATCH_FILE_NAME }' Makefile"
+            
+            sudo chroot "$CHROOT_ROOT" sh -c "$PATCH_SED_COMMAND"
             
             # Build the 32-bit package
             BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
