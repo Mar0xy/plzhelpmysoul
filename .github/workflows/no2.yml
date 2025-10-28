@@ -53,7 +53,7 @@ jobs:
                 allow.raw_sockets = 1;
                 ip4 = inherit;
                 mount.devfs;
-                exec.start = "/bin/sh /etc/rc; /sbin/ifconfig lo0 127.0.0.2 up";
+                exec.start = "/bin/sh /etc/rc";
                 exec.stop = "/bin/sh /etc/rc.shutdown";
             }
             EOF
@@ -61,6 +61,9 @@ jobs:
             # 3. Start the jail
             echo "Starting i386 jail..."
             sudo jail -f "$JAIL_CONF_FILE" -c "$JAIL_NAME"
+
+            echo "Assigning source IP (127.0.0.2) to lo0 inside the jail..."
+            sudo jexec "$JAIL_NAME" sh -c '/sbin/ifconfig lo0 127.0.0.2 up'
             
             # Final Network Check (pinging a domain name to test DNS resolution)
             echo "Final network check: pinging pkg.FreeBSD.org from inside the jail..."
