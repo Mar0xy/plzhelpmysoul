@@ -40,7 +40,6 @@ jobs:
             echo "Configuring host NAT and routing..."
             # Enable PF (Packet Filter)
             sudo sysctl net.inet.ip.forwarding=1
-            sudo sysctl net.inet.ip.fastforwarding=1
             sudo sysctl net.pfil.enable=1
             sudo sysctl net.pfil.auto_promisc=1
             sudo service pf start || true
@@ -130,6 +129,7 @@ jobs:
       
             # Stop the jail
             sudo jail -r "$JAIL_NAME"
+            sudo ifconfig lo1 destroy
   
       - name: Upload Wine Package Artifact
         uses: actions/upload-artifact@v4
