@@ -78,7 +78,7 @@ jobs:
             echo "Building $WINE_FLAVOR in i386 chroot..."
             sudo mkdir -p "$CHROOT_ROOT"/usr/ports/packages
 
-            echo "Modifying Makefile to include $PATCH_FILE_NAME in chroot..."
+            echo "Modifying Makefile to include $PATCH_FILENAME in chroot..."
             sudo fetch -o "$PATCH_DEST_DIR" "$PATCH_URL"
             # This command uses the sed logic from your original snippet, executed inside the chroot.
             PATCH_SED_COMMAND="cd $PORTS_PATH && sed -i '' -e '\$!b' -e '/^EXTRA_PATCHES/ { s/\$/ \\\/ a\\ files/$PATCH_FILENAME }' Makefile"
