@@ -40,17 +40,31 @@ jobs:
             sudo cp /etc/resolv.conf "$CHROOT_ROOT"/etc/resolv.conf
             # Mount the devfs file system inside the chroot
             sudo mount -t devfs devfs "$CHROOT_ROOT"/dev
+
+            # CRITICAL FIX 1: Create the repository configuration directory
+            echo "Creating pkg repository configuration directory..."
+            sudo mkdir -p "$CHROOT_ROOT"/usr/local/etc/pkg/repos
+            
+            # CRITICAL FIX 2: Create the FreeBSD.conf file pointing to the i386 repository
+            echo "Creating FreeBSD.conf with i386 repository settings..."
+            cat <<EOF | sudo tee "$CHROOT_ROOT"/usr/local/etc/pkg/repos/FreeBSD.conf
+            FreeBSD: {
+              url: "pkg+http://pkg.FreeBSD.org/FreeBSD:\${ABI:CUPCASE}/quarterly",
+              mirror_type: "srv",
+              enabled: yes,
+              priority: 5,
+              signature_type: "fingerprints",
+              fingerprints: "/usr/share/keys/pkg",
+              # The i386 base system is running, so pkg should use the i386 repository.
+            }
+            EOF
             
             # 2. Prepare Ports and Build the package inside the 32-bit chroot
             echo "Preparing ports inside the i386 chroot..."
             
-            # Use chroot to run commands inside the 32-bit environment. 
-            # The network is now inherited from the host.
-            
-            # Bootstrap pkg and git using the i386 repository
-            # Note: Use -r FreeBSD-i386 for chroot to ensure it grabs the right architecture
+            # Bootstrap all required dependencies
             sudo chroot "$CHROOT_ROOT" sh -c 'env ASSUME_ALWAYS_YES=YES \
-                pkg install -y -r FreeBSD-i386 pkg git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender'
+                pkg install -y pkg git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender'
             
             # Clone ports
             sudo chroot "$CHROOT_ROOT" sh -c 'git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports'
