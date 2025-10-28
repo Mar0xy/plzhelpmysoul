@@ -28,7 +28,9 @@ jobs:
             JAIL_ROOT="/usr/jail/$JAIL_NAME"
             RELEASE_VERSION="14.3" # Use a stable version of i386 base
             JAIL_CONF_FILE="/tmp/jail.conf"
-            HOST_INTERFACE="vtnet0"
+            HOST_INTERFACE="vtnet0" # Common interface name in cloud/VM environments
+            JAIL_IP="10.10.0.2" # A unique, likely unused IP for the jail
+            NETMASK="24"
       
             # 1. Create and populate the i386 jail
             echo "Setting up i386 jail..."
@@ -37,38 +39,13 @@ jobs:
             sudo tar -xpf /tmp/base.txz -C "$JAIL_ROOT"
             sudo chown -R root:wheel "$JAIL_ROOT"
 
-            echo "Configuring host NAT and routing..."
-            # Enable PF (Packet Filter)
-            sudo sysctl net.inet.ip.forwarding=1
-            sudo sysctl net.pfil.enable=1
-            sudo sysctl net.pfil.auto_promisc=1
-            sudo service pf start || true
-            
-            # Add a simple NAT rule to the host's pf.conf file
-            cat <<EOF | sudo tee /etc/pf.conf
-            # Define the external interface
-            ext_if = "$HOST_INTERFACE"
-            # Define the jail's dedicated interface and subnet
-            jail_if = "lo1"
-            jail_net = 10.10.0.0/24
-            
-            # Set up NAT from the jail subnet to the external interface
-            nat on \$ext_if from \$jail_net to any -> (\$ext_if)
-            pass out quick on \$ext_if inet all
-            pass in on \$ext_if inet proto tcp to (self) port ssh
-            # Allow traffic on the dedicated jail interface
-            set skip on \$jail_if
-            # Allow loopback traffic
-            set skip on lo0
-            EOF
-            
-            # Load the new pf rules
-            sudo pfctl -f /etc/pf.conf
-            sudo pfctl -e
-            
-            # Configure the dedicated jail interface (lo1) on the host
-            sudo ifconfig lo1 create
-            sudo ifconfig lo1 inet 10.10.0.1/24 up
+            echo "Adding IP alias $JAIL_IP to $HOST_INTERFACE on the host..."
+            # Check if the interface exists before attempting to configure it (optional safety)
+            if ! ifconfig "$HOST_INTERFACE"; then
+                echo "Warning: Host interface $HOST_INTERFACE not found. Trying em0..."
+                HOST_INTERFACE="em0"
+            fi
+            sudo ifconfig "$HOST_INTERFACE" alias "$JAIL_IP"/"$NETMASK"
 
             echo "Forcing public nameservers inside jail's resolv.conf..."
             cat <<EOF | sudo tee "$JAIL_ROOT"/etc/resolv.conf
@@ -84,8 +61,8 @@ jobs:
                 path = "$JAIL_ROOT";
                 allow.mount.devfs = 1;
                 allow.raw_sockets = 1;
-                interface = "lo1";
-                ip4.addr = 10.10.0.2/24;
+                interface = "$HOST_INTERFACE";
+                ip4.addr = "$JAIL_IP"/"$NETMASK";
                 mount.devfs;
                 exec.start = "/bin/sh /etc/rc";
                 exec.stop = "/bin/sh /etc/rc.shutdown";
@@ -129,7 +106,7 @@ jobs:
       
             # Stop the jail
             sudo jail -r "$JAIL_NAME"
-            sudo ifconfig lo1 destroy
+            sudo ifconfig "$HOST_INTERFACE" -alias "$JAIL_IP"/"$NETMASK"
   
       - name: Upload Wine Package Artifact
         uses: actions/upload-artifact@v4
