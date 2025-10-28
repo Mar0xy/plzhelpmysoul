@@ -49,7 +49,7 @@ jobs:
             echo "Creating FreeBSD.conf with i386 repository settings..."
             cat <<EOF | sudo tee "$CHROOT_ROOT"/usr/local/etc/pkg/repos/FreeBSD.conf
             FreeBSD: {
-              url: "pkg+http://pkg.FreeBSD.org/FreeBSD:\${ABI:CUPCASE}/quarterly",
+              url: "pkg+http://pkg.FreeBSD.org/FreeBSD:14:i386/quarterly",
               mirror_type: "srv",
               enabled: yes,
               priority: 5,
