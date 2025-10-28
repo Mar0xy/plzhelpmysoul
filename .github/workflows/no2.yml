@@ -51,7 +51,7 @@ jobs:
                 path = "$JAIL_ROOT";
                 allow.mount.devfs = 1;
                 allow.raw_sockets = 1;
-                ip4 = inherit;
+                ip4.addr = 127.0.0.2/8;
                 mount.devfs;
                 allow.chflags = 1;        # Allows modifying interface flags (like 'up')
                 allow.sysvipc = 1;        # General compatibility for network services
@@ -63,9 +63,6 @@ jobs:
             # 3. Start the jail
             echo "Starting i386 jail..."
             sudo jail -f "$JAIL_CONF_FILE" -c "$JAIL_NAME"
-
-            echo "Assigning source IP (127.0.0.2) to lo0 inside the jail..."
-            sudo jexec "$JAIL_NAME" sh -c '/sbin/ifconfig lo0 127.0.0.2 up'
             
             # Final Network Check (pinging a domain name to test DNS resolution)
             echo "Final network check: pinging pkg.FreeBSD.org from inside the jail..."
