@@ -29,11 +29,6 @@ jobs:
             RELEASE_VERSION="14.3" # Use a stable version of i386 base
             JAIL_CONF_FILE="/tmp/jail.conf"
             HOST_INTERFACE="vtnet0" # The host's main network interface
-
-            # 0. Load necessary kernel modules for VNET/bridging
-            echo "Loading VNET and bridge kernel modules..."
-            sudo kldload if_bridge || true
-            sudo kldload epair || true
       
             # 1. Create and populate the i386 jail
             echo "Setting up i386 jail..."
@@ -41,26 +36,6 @@ jobs:
             sudo fetch --no-verify-peer https://ftp.freebsd.org/pub/FreeBSD/releases/i386/i386/$RELEASE_VERSION-RELEASE/base.txz -o /tmp/base.txz
             sudo tar -xpf /tmp/base.txz -C "$JAIL_ROOT"
             sudo chown -R root:wheel "$JAIL_ROOT"
-
-            echo "Setting up VNET bridge and epair..."
-            sudo ifconfig bridge create name bridge0
-            # Remove any existing host interface configuration from the bridge
-            sudo ifconfig bridge0 delete member "$HOST_INTERFACE" || true 
-            # Add the physical interface to the bridge
-            sudo ifconfig bridge0 add member "$HOST_INTERFACE"
-            # Bring the bridge up
-            sudo ifconfig bridge0 up
-            
-            # Create the epair (virtual link)
-            sudo ifconfig epair create
-            
-            # Split the epair into host side (epair0a) and jail side (epair0b)
-            HOST_SIDE="epair0a"
-            JAIL_SIDE="epair0b"
-            
-            # Configure the host side of the epair and add it to the bridge
-            sudo ifconfig "$HOST_SIDE" up
-            sudo ifconfig bridge0 add member "$HOST_SIDE"
 
             echo "Forcing public nameservers inside jail's resolv.conf..."
             cat <<EOF | sudo tee "$JAIL_ROOT"/etc/resolv.conf
@@ -76,8 +51,7 @@ jobs:
                 path = "$JAIL_ROOT";
                 allow.mount.devfs = 1;
                 allow.raw_sockets = 1;
-                vnet;
-                vnet.interface = "$JAIL_SIDE";
+                ip4 = inherit;
                 mount.devfs;
                 exec.start = "/bin/sh /etc/rc";
                 exec.stop = "/bin/sh /etc/rc.shutdown";
@@ -87,21 +61,8 @@ jobs:
             # 3. Start the jail
             echo "Starting i386 jail..."
             sudo jail -f "$JAIL_CONF_FILE" -c "$JAIL_NAME"
-
-            # 4. Configure network inside the jail
-            echo "Configuring network inside the i386 jail..."
-            # Get the host's existing IP/Netmask/Gateway to assign to the jail
-            HOST_IP=$(ifconfig "$HOST_INTERFACE" | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
-            NETMASK=$(ifconfig "$HOST_INTERFACE" | grep 'inet ' | awk '{print $4}')
-            GATEWAY=$(netstat -rn | grep default | awk '{print $2}' | head -1)
             
-            # Configure the jail's interface (epair0b) with the host's network settings
-            sudo jexec "$JAIL_NAME" sh -c "ifconfig $JAIL_SIDE inet $HOST_IP netmask $NETMASK"
-            sudo jexec "$JAIL_NAME" sh -c "route add default $GATEWAY"
-            sudo jexec "$JAIL_NAME" sh -c "ifconfig $JAIL_SIDE up"
-            sudo jexec "$JAIL_NAME" sh -c "ifconfig lo0 up"
-            
-            # 5. Final Network Check (pinging a domain name to test DNS resolution)
+            # Final Network Check (pinging a domain name to test DNS resolution)
             echo "Final network check: pinging pkg.FreeBSD.org from inside the jail..."
             # This is the actual server we need to reach.
             sudo jexec "$JAIL_NAME" sh -c 'ping -c 3 pkg.FreeBSD.org'
@@ -136,9 +97,6 @@ jobs:
       
             # Stop the jail
             sudo jail -r "$JAIL_NAME"
-            sudo ifconfig bridge0 destroy
-            sudo ifconfig "$HOST_SIDE" destroy
-            sudo ifconfig "$JAIL_SIDE" destroy
   
       - name: Upload Wine Package Artifact
         uses: actions/upload-artifact@v4
