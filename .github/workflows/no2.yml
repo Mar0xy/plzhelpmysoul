@@ -102,8 +102,6 @@ jobs:
             
             # Clean up: Unmount devfs and remove the chroot directory
             sudo umount "$CHROOT_ROOT"/dev
-            # Note: Using rm -rf is necessary for cleanup but should be handled with extreme care!
-            sudo rm -rf "$CHROOT_ROOT"
   
       - name: Upload Wine Package Artifact
         uses: actions/upload-artifact@v4
