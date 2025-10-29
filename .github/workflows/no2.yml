@@ -83,11 +83,7 @@ jobs:
             echo "Modifying Makefile to include $PATCH_FILENAME..."
             sudo fetch -o "$PATCH_DEST" "$PATCH_URL"
 
-            sudo sed -i '' -e '$!b' -e '/^EXTRA_PATCHES/ {
-              s/$/ \\/
-              a\
-            	files/'"$PATCH_FILENAME"'
-            }' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
+            sudo sed -i '' -e '/^EXTRA_PATCHES/s/\$/ \\ files\/${PATCH_FILENAME}/' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
             
             # Build the 32-bit package
             BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
