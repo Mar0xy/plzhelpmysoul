@@ -87,7 +87,7 @@ jobs:
               s/$/ \\/
               a\
             	files/'"$PATCH_FILENAME"'
-            }' Makefile
+            }' "${CHROOT_ROOT}"/"${PORTS_PATH}"
             
             # Build the 32-bit package
             BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
