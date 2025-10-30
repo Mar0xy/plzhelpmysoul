@@ -84,6 +84,36 @@ jobs:
             sudo fetch -o "$PATCH_DEST" "$PATCH_URL"
 
             sudo sed -i "" -e "/^EXTRA_PATCHES/s/\$/ \\ files\/${PATCH_FILENAME}/" "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
+
+            # --- wine-proton Specific Updates ---
+            if [ "$WINE_FLAVOR" = "wine-proton" ]; then
+                echo "Applying specific configuration for wine-proton..."
+                sudo pkg install -y cmake
+                
+                # 1. Update Wine version in Makefile (e.g., 9.0-3 to 10.0-1) and git commit
+                sudo sed -i "" -e 's/9.0-3/10.0-1/g' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
+                sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
+                
+                # 2. Update distinfo file with new SHA256 and SIZE for the new distfile
+                NEW_DISTFILE="ValveSoftware-wine-10.0-1-8b5ff79bcef26007edd5f1f517ba823f56c01bf3_GH0.tar.gz"
+                DISTINFO_FILE="${CHROOT_ROOT}${PORTS_PATH}/distinfo" 
+                OLD_DISTFILE_PATTERN="wine-9.0-3-*"
+                NEW_SHA256_LINE="SHA256 (${NEW_DISTFILE}) = 0ed544a6fefecebd5bf337d8df1343348880ff3b97cee910eb34cdb8977fa89f"
+                NEW_SIZE_LINE="SIZE (${NEW_DISTFILE}) = 52573650"
+                LD_PATTERN_ESCAPED=$(echo "$OLD_DISTFILE_PATTERN" | sed 's/[\/\.]/\\&/g')
+                
+                # Delete old entries
+                sudo sed -i "" -e "/SHA256 (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
+                sudo sed -i "" -e "/SIZE (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
+                
+                # Append new entries
+                echo "$NEW_SHA256_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
+                echo "$NEW_SIZE_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
+  
+                # 3. Update patches (remove old and modify existing)
+                sudo rm -f "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_loader.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_signal__x86__64.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-include_wine_asm.h 
+                sudo sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -3587,10 +3588,6 @@/' "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_winevulkan_vulkan.c
+            fi
             
             # Build the 32-bit package
             BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
