@@ -69,7 +69,7 @@ jobs:
               OLD_DISTFILE_PATTERN="wine-9.0-3-*"
               NEW_SHA256_LINE="SHA256 (${NEW_DISTFILE}) = 0ed544a6fefecebd5bf337d8df1343348880ff3b97cee910eb34cdb8977fa89f"
               NEW_SIZE_LINE="SIZE (${NEW_DISTFILE}) = 52573650"
-              LD_PATTERN_ESCAPED=$(echo "$OLD_DISTFILE_PATTERN" | sed 's/[\/\.]/\\&/g')
+              OLD_PATTERN_ESCAPED=$(echo "$OLD_DISTFILE_PATTERN" | sed 's/[\/\.]/\\&/g')
               
               # Delete old entries
               sudo sed -i "" -e "/SHA256 (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
