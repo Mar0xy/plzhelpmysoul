@@ -9,6 +9,24 @@ on:
         default: 'wine'
 
 jobs:
+  free-disk-space:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: BRAINSia/free-disk-space@v2.1.1
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: false
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
   build-freebsd-pkg:
     runs-on: ubuntu-latest
     steps:
@@ -80,7 +98,7 @@ jobs:
               echo "$NEW_SIZE_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
 
               # 3. Update patches (remove old and modify existing)
-              sudo rm -f files/patch-dlls_ntdll_unix_loader.c files/patch-dlls_ntdll_unix_signal__x86__64.c files/patch-include_wine_asm.h 
+              sudo rm -f files/patch-dlls_ntdll_unix_loader.c files/patch-dlls_ntdll_unix_system.c files/patch-dlls_ntdll_unix_signal__x86__64.c files/patch-include_wine_asm.h 
               sudo sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -3587,10 +3588,6 @@/' files/patch-dlls_winevulkan_vulkan.c
           fi
           
