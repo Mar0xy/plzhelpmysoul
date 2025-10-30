@@ -73,7 +73,7 @@ jobs:
             
             WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
             PORTS_PATH="/usr/ports/emulators/${WINE_FLAVOR}"
-            PATCH_URL="https://dawn.wine/dawn-winery/dwproton/raw/commit/6eb9358044fd50f0724e79b41869a02b4050bc3b/patches/spritz/0002-fixes/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
+            PATCH_URL="https://dawn.wine/marie/freebsd-wine-patches/raw/branch/main/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
             PATCH_FILENAME="extra-patch-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
             PATCH_DEST="${CHROOT_ROOT}${PORTS_PATH}/files/${PATCH_FILENAME}"
             
