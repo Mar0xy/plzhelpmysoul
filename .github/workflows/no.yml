@@ -59,6 +59,7 @@ jobs:
 
           if [ "$WINE_FLAVOR" = "wine-proton" ]; then
               echo "Applying specific configuration for wine-proton..."
+              sudo sed -i "" -e 's/9.0-3/10.0-1/g' Makefile
               sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' Makefile
           fi
           
