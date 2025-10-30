@@ -16,30 +16,31 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Build Wine Package on FreeBSD 14.3 VM
+      # This action launches a temporary FreeBSD VM on the Ubuntu runner
       uses: cross-platform-actions/action@v0.29.0
       with:
         operating_system: freebsd
         version: '14.3'
-        # The script below runs entirely inside the temporary FreeBSD VM
+        # The 'run' script executes entirely inside the temporary FreeBSD VM
         run: |
-          # Set up the Ports environment
+          # --- Environment Setup ---
+          # Install build dependencies for the Ports tree
           sudo pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
           
-          # Clone the official FreeBSD Ports tree
+          # Clone the official FreeBSD Ports tree (2025Q4 branch)
           sudo git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports
           sudo mkdir /usr/ports/packages
   
-          # Determine the Wine flavor to build from workflow input
+          # --- Port Configuration ---
+          # Determine the Wine flavor from workflow input (defaults to wine-stable)
           WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
           PORTS_PATH="/usr/ports/emulators/${WINE_FLAVOR}"
   
           echo "Starting build for flavor: $WINE_FLAVOR"
-          
-          # Change directory to the specified Wine port
           cd $PORTS_PATH
 
-          # --- CUSTOM PATCH: Apply specific kernel32 fix via EXTRA_PATCHES ---
-          # This method leverages the ports infrastructure to automatically apply the patch.
+          # --- CUSTOM PATCH: Apply kernel32 fix via EXTRA_PATCHES ---
+          # This leverages the ports infrastructure to automatically apply the patch.
           PATCH_URL="https://dawn.wine/marie/freebsd-wine-patches/raw/branch/main/0002-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
           PATCH_FILENAME="extra-patch-kernel32-Avoid-RBP-based-frame-in-BaseThreadInitThunk-on-x64.patch"
           
@@ -49,61 +50,57 @@ jobs:
           echo "Fetching and saving patch as files/$PATCH_FILENAME"
           sudo fetch -o "files/$PATCH_FILENAME" "$PATCH_URL"
   
-          # 2. Modify the existing EXTRA_PATCHES line in the Makefile using sed.
-          # This finds the last line starting with 'EXTRA_PATCHES' and inserts the new patch
-          # path with a line continuation ('\') to keep the definition unified.
+          # 2. Modify the Makefile to include the patch in EXTRA_PATCHES
+          # Note: Uses FreeBSD sed syntax
           echo "Modifying Makefile to include patch..."
-          # Note: The FreeBSD sed syntax is used here (though the shell might default to GNU sed depending on the VM configuration, this is safer)
           sudo sed -i "" -e '/\.if ${ARCH} == amd64/a\
           EXTRA_PATCHES+= files\/'"$PATCH_FILENAME" Makefile
 
+          # --- wine-proton Specific Updates ---
           if [ "$WINE_FLAVOR" = "wine-proton" ]; then
               echo "Applying specific configuration for wine-proton..."
+              
+              # 1. Update Wine version in Makefile (e.g., 9.0-3 to 10.0-1) and git commit
               sudo sed -i "" -e 's/9.0-3/10.0-1/g' Makefile
-              # Define the new distfile name from the uploaded file's structure
+              sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' Makefile
+              
+              # 2. Update distinfo file with new SHA256 and SIZE for the new distfile
               NEW_DISTFILE="ValveSoftware-wine-10.0-1-8b5ff79bcef26007edd5f1f517ba823f56c01bf3_GH0.tar.gz"
-              # Define the location of the distinfo file
               DISTINFO_FILE="distinfo" 
-              # Define the OLD file name/pattern to search for (based on your previous sed command)
               OLD_DISTFILE_PATTERN="wine-9.0-3-*"
               NEW_SHA256_LINE="SHA256 (${NEW_DISTFILE}) = 0ed544a6fefecebd5bf337d8df1343348880ff3b97cee910eb34cdb8977fa89f"
               NEW_SIZE_LINE="SIZE (${NEW_DISTFILE}) = 52573650"
               LD_PATTERN_ESCAPED=$(echo "$OLD_DISTFILE_PATTERN" | sed 's/[\/\.]/\\&/g')
               
-              # 1. Delete the old SHA256 and SIZE lines (matching the old pattern)
+              # Delete old entries
               sudo sed -i "" -e "/SHA256 (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
               sudo sed -i "" -e "/SIZE (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
               
-              # 2. Append the new lines to the end of the file
+              # Append new entries
               echo "$NEW_SHA256_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
               echo "$NEW_SIZE_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
 
-              # 3. Update patches
+              # 3. Update patches (remove old and modify existing)
               sudo rm -f files/patch-dlls_ntdll_unix_loader.c files/patch-dlls_ntdll_unix_signal__x86__64.c files/patch-include_wine_asm.h 
               sudo sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -3587,10 +3588,6 @@/' files/patch-dlls_winevulkan_vulkan.c
-
-              # 4. Update commit to proton-10.0
-              sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' Makefile
           fi
           
-          # Build the package
+          # --- Build and Cleanup ---
+          # Run the port build process
           export DISABLE_LICENSES=yes
           export BATCH=yes
           sudo -E make package
           
-          # Find the specific .pkg file created in the packages directory.
-          # Check for the modern .pkg extension first
+          # Find the created package file (.pkg or .txz)
           PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.pkg" | head -n 1)
           
-          # If not found, check for the traditional .txz extension
           if [ -z "$PKG_FILE" ]; then
               PKG_FILE=$(find /usr/ports/packages/All/ -name "${WINE_FLAVOR}*.txz" | head -n 1)
           fi
           
           echo "Successfully built package: $PKG_FILE"
           
-          # CRITICAL: Copy the package file to the GITHUB_WORKSPACE 
-          # so the subsequent host runner steps can access the artifact.
+          # Copy the package to GITHUB_WORKSPACE for the host runner to access
           sudo cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
   
     - name: Upload Wine Package Artifact
