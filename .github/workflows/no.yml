@@ -80,7 +80,7 @@ jobs:
 
               # 3. Update patches
               sudo rm -f files/patch-dlls_ntdll_unix_loader.c files/patch-dlls_ntdll_unix_signal__x86__64.c files/patch-include_wine_asm.h 
-              sudo sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -4172,11 +4173,7 @@/' files/patch-dlls_winevulkan_vulkan.c
+              sudo sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -4171,11 +4171,7 @@/' files/patch-dlls_winevulkan_vulkan.c
 
               # 4. Update commit to proton-10.0
               sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' Makefile
