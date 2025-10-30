@@ -77,7 +77,7 @@ jobs:
               # 2. Append the new lines to the end of the file
               echo "$NEW_SHA256_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
               echo "$NEW_SIZE_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
-              sudo rm -f files/patch-dlls_ntdll_unix_loader.c files/patch-dlls_ntdll_unix_signal__x86__64.c patch-include_wine_asm.h 
+              sudo rm -f files/patch-dlls_ntdll_unix_loader.c files/patch-dlls_ntdll_unix_signal__x86__64.c files/patch-include_wine_asm.h 
               sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' Makefile
           fi
           
