@@ -60,6 +60,23 @@ jobs:
           if [ "$WINE_FLAVOR" = "wine-proton" ]; then
               echo "Applying specific configuration for wine-proton..."
               sudo sed -i "" -e 's/9.0-3/10.0-1/g' Makefile
+              # Define the new distfile name from the uploaded file's structure
+              NEW_DISTFILE="ValveSoftware-wine-10.0-1-8b5ff79bcef26007edd5f1f517ba823f56c01bf3_GH0.tar.gz"
+              # Define the location of the distinfo file
+              DISTINFO_FILE="distinfo" 
+              # Define the OLD file name/pattern to search for (based on your previous sed command)
+              OLD_DISTFILE_PATTERN="wine-9.0-3-*"
+              NEW_SHA256_LINE="SHA256 (${NEW_DISTFILE}) = e8ba3e1bfa1d211c83b001a388ceaf85a22ead8307e97f3739846882dc8449d5"
+              NEW_SIZE_LINE="SIZE (${NEW_DISTFILE}) = 52534492"
+              LD_PATTERN_ESCAPED=$(echo "$OLD_DISTFILE_PATTERN" | sed 's/[\/\.]/\\&/g')
+              
+              # 1. Delete the old SHA256 and SIZE lines (matching the old pattern)
+              sudo sed -i "" -e "/SHA256 (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
+              sudo sed -i "" -e "/SIZE (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
+              
+              # 2. Append the new lines to the end of the file
+              echo "$NEW_SHA256_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
+              echo "$NEW_SIZE_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
               sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' Makefile
           fi
           
