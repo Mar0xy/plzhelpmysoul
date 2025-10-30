@@ -56,6 +56,11 @@ jobs:
           # Note: The FreeBSD sed syntax is used here (though the shell might default to GNU sed depending on the VM configuration, this is safer)
           sudo sed -i "" -e '/\.if ${ARCH} == amd64/a\
           EXTRA_PATCHES+= files\/'"$PATCH_FILENAME" Makefile
+
+          if [ "$WINE_FLAVOR" = "wine-proton" ]; then
+              echo "Applying specific configuration for wine-proton..."
+              sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' Makefile
+          fi
           
           # Build the package
           export DISABLE_LICENSES=yes
