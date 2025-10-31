@@ -17,10 +17,8 @@ jobs:
         
       - name: Build Wine Package on FreeBSD 14.3 VM (i386)
         # Launches a FreeBSD VM and runs the script inside it
-        uses: cross-platform-actions/action@v0.29.0
+        uses: vmactions/freebsd-vm@v1.2.4
         with:
-          operating_system: freebsd
-          version: '14.3'
           run: |
             set -eux  # Exit immediately on error
 
@@ -31,23 +29,23 @@ jobs:
             # 1. Create and Configure the i386 Chroot Environment
             # --------------------------------------------------
             echo "Setting up i386 chroot at $CHROOT_ROOT..."
-            sudo mkdir -p "$CHROOT_ROOT"
+            mkdir -p "$CHROOT_ROOT"
       
             # Fetch the 32-bit base system and extract it
-            sudo fetch --no-verify-peer https://ftp.freebsd.org/pub/FreeBSD/releases/i386/i386/$RELEASE_VERSION-RELEASE/base.txz -o /tmp/base.txz
-            sudo tar -xpf /tmp/base.txz -C "$CHROOT_ROOT"
-            sudo chown -R root:wheel "$CHROOT_ROOT"
+            fetch --no-verify-peer https://ftp.freebsd.org/pub/FreeBSD/releases/i386/i386/$RELEASE_VERSION-RELEASE/base.txz -o /tmp/base.txz
+            tar -xpf /tmp/base.txz -C "$CHROOT_ROOT"
+            chown -R root:wheel "$CHROOT_ROOT"
             
             # Copy essential host files and mount virtual filesystems
-            sudo cp /etc/resolv.conf "$CHROOT_ROOT"/etc/resolv.conf
-            sudo mount -t devfs devfs "$CHROOT_ROOT"/dev
-            sudo mkdir -p "$CHROOT_ROOT"/tmp
-            sudo chmod 1777 "$CHROOT_ROOT"/tmp
+            cp /etc/resolv.conf "$CHROOT_ROOT"/etc/resolv.conf
+            mount -t devfs devfs "$CHROOT_ROOT"/dev
+            mkdir -p "$CHROOT_ROOT"/tmp
+            chmod 1777 "$CHROOT_ROOT"/tmp
 
             # Configure pkg to use the 32-bit (i386) quarterly repository
             echo "Configuring pkg for i386 repository..."
-            sudo mkdir -p "$CHROOT_ROOT"/usr/local/etc/pkg/repos
-            cat <<EOF | sudo tee "$CHROOT_ROOT"/usr/local/etc/pkg/repos/FreeBSD.conf
+            mkdir -p "$CHROOT_ROOT"/usr/local/etc/pkg/repos
+            cat <<EOF | tee "$CHROOT_ROOT"/usr/local/etc/pkg/repos/FreeBSD.conf
             FreeBSD: {
               url: "pkg+http://pkg.FreeBSD.org/FreeBSD:14:i386/quarterly",
               mirror_type: "srv",
@@ -60,14 +58,14 @@ jobs:
             
             # 2. Prepare Ports and Build the Package inside the Chroot
             # ------------------------------------------------------
-            echo "Preparing ports inside the i386 chroot..."
+            "Preparing ports inside the i386 chroot..."
             
             # Bootstrap all required dependencies using chroot
-            sudo chroot "$CHROOT_ROOT" sh -c 'env ASSUME_ALWAYS_YES=YES \
+            chroot "$CHROOT_ROOT" sh -c 'env ASSUME_ALWAYS_YES=YES \
                 pkg install -y pkg git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender'
             
             # Clone ports tree
-            sudo chroot "$CHROOT_ROOT" sh -c 'git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports'
+            chroot "$CHROOT_ROOT" sh -c 'git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports'
             
             WINE_FLAVOR="${{ github.event.inputs.wine_version || 'wine-stable' }}"
             PORTS_PATH="/usr/ports/emulators/${WINE_FLAVOR}"
@@ -76,7 +74,7 @@ jobs:
             PATCH_DEST="${CHROOT_ROOT}${PORTS_PATH}/files/${PATCH_FILENAME}"
             
             echo "Building $WINE_FLAVOR in i386 chroot..."
-            sudo mkdir -p "$CHROOT_ROOT"/usr/ports/packages
+            mkdir -p "$CHROOT_ROOT"/usr/ports/packages
 
             # Apply custom patch (note: this patch is technically for x64, but included here for completeness)
             echo "Fetching patch and modifying Makefile..."
@@ -87,12 +85,12 @@ jobs:
             if [ "$WINE_FLAVOR" = "wine-proton" ]; then
                 echo "Applying specific configuration for wine-proton..."
                 # Install cmake dependency inside the chroot
-                sudo chroot "$CHROOT_ROOT" sh -c 'env ASSUME_ALWAYS_YES=YES \
+                chroot "$CHROOT_ROOT" sh -c 'env ASSUME_ALWAYS_YES=YES \
                 pkg install -y cmake'
                 
                 # 1. Update Wine version and git commit in Makefile
-                sudo sed -i "" -e 's/9.0-3/10.0-1/g' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
-                sudo sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
+                sed -i "" -e 's/9.0-3/10.0-1/g' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
+                sed -i "" -e 's/488fb296dda334a1e8555a9dd8f5cbe09be2afe5/8b5ff79bcef26007edd5f1f517ba823f56c01bf3/g' "${CHROOT_ROOT}""${PORTS_PATH}"/Makefile
                 
                 # 2. Update distinfo file with new SHA256 and SIZE
                 NEW_DISTFILE="ValveSoftware-wine-10.0-1-8b5ff79bcef26007edd5f1f517ba823f56c01bf3_GH0.tar.gz"
@@ -103,19 +101,19 @@ jobs:
                 OLD_PATTERN_ESCAPED=$(echo "$OLD_DISTFILE_PATTERN" | sed 's/[\/\.]/\\&/g')
                 
                 # Delete old entries and append new ones
-                sudo sed -i "" -e "/SHA256 (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
-                sudo sed -i "" -e "/SIZE (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
-                echo "$NEW_SHA256_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
-                echo "$NEW_SIZE_LINE" | sudo tee -a "$DISTINFO_FILE" > /dev/null
+                sed -i "" -e "/SHA256 (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
+                sed -i "" -e "/SIZE (${OLD_PATTERN_ESCAPED})/d" "$DISTINFO_FILE"
+                echo "$NEW_SHA256_LINE" | tee -a "$DISTINFO_FILE" > /dev/null
+                echo "$NEW_SIZE_LINE" | tee -a "$DISTINFO_FILE" > /dev/null
   
                 # 3. Update patches (remove old and modify existing)
-                sudo rm -f "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_loader.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_signal__x86__64.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-include_wine_asm.h 
-                sudo sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -3587,10 +3588,6 @@/' "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_winevulkan_vulkan.c
+                rm -f "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_loader.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-include_wine_asm.h 
+                sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -3587,10 +3588,6 @@/' "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_winevulkan_vulkan.c
             fi
             
             # Execute the package build inside the 32-bit chroot
             BUILD_CMD="cd $PORTS_PATH && make clean && make BATCH=yes DISABLE_LICENSES=yes package"
-            sudo chroot "$CHROOT_ROOT" sh -c "$BUILD_CMD"
+            chroot "$CHROOT_ROOT" sh -c "$BUILD_CMD"
             
             # 3. Finalize and Clean Up
             # ------------------------
@@ -127,10 +125,10 @@ jobs:
             fi
             
             echo "Successfully built package: $PKG_FILE"
-            sudo cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
+            cp "$PKG_FILE" "${GITHUB_WORKSPACE}/"
             
             # Clean up: Unmount devfs before the chroot directory is implicitly deleted
-            sudo umount "$CHROOT_ROOT"/dev
+            umount "$CHROOT_ROOT"/dev
   
       - name: Upload Wine Package Artifact
         uses: actions/upload-artifact@v4
