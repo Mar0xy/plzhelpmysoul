@@ -58,7 +58,7 @@ jobs:
             
             # 2. Prepare Ports and Build the Package inside the Chroot
             # ------------------------------------------------------
-            "Preparing ports inside the i386 chroot..."
+            echo "Preparing ports inside the i386 chroot..."
             
             # Bootstrap all required dependencies using chroot
             chroot "$CHROOT_ROOT" sh -c 'env ASSUME_ALWAYS_YES=YES \
