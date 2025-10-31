@@ -32,7 +32,7 @@ jobs:
         run: |
           # --- Environment Setup ---
           # Install build dependencies for the Ports tree
-          sudo pkg install -y git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
+          pkg install -y sudo git gmake pkgconf perl5 llvm19 flex bison desktop-file-utils gettext-tools gettext ninja gstreamer1-plugins sdl2 gcc13 binutils xorgproto libX11 libXcomposite libXcursor libXext libXi libXinerama libXrandr libXrender
           
           # Clone the official FreeBSD Ports tree (2025Q4 branch)
           sudo git clone --depth 1 --branch 2025Q4 https://git.freebsd.org/ports.git /usr/ports
