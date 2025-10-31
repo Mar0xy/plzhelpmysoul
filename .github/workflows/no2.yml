@@ -107,7 +107,7 @@ jobs:
                 echo "$NEW_SIZE_LINE" | tee -a "$DISTINFO_FILE" > /dev/null
   
                 # 3. Update patches (remove old and modify existing)
-                rm -f "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_loader.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-include_wine_asm.h 
+                rm -f "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_loader.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_ntdll_unix_system.c "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-include_wine_asm.h 
                 sed -i '' 's/@@ -4332,11 +4333,7 @@/@@ -3587,10 +3588,6 @@/' "${CHROOT_ROOT}""${PORTS_PATH}"/files/patch-dlls_winevulkan_vulkan.c
             fi
             
